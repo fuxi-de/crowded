@@ -7,8 +7,7 @@ import shop from './shop.interface';
 @Injectable()
 export class CrawlerService {
   private baseUrl = 'https://www.google.de/maps/place';
-  private cityPath = '22301';
-  private searchString = 'supermarkt';
+  private resultSelector = 'div.section-result';
   private openPages = 0;
   private readonly logger = new Logger('crawlerService');
 
@@ -16,12 +15,15 @@ export class CrawlerService {
     this.browser = browser;
   }
 
-  async crawl(): Promise<Array<shop> | undefined> {
+  async crawl(
+    region: string,
+    searchString: string,
+  ): Promise<Array<shop> | undefined> {
     const page = await this.browser.newPage();
     const itemList = await this.buildItemList(
       page,
-      `${this.baseUrl}/${this.cityPath}`,
-      'div.section-result',
+      `${this.baseUrl}/${region}`,
+      searchString,
     );
     const url = page.url();
     const resultList = [];
@@ -70,18 +72,18 @@ export class CrawlerService {
   async buildItemList(
     page: puppeteer.Page,
     path: string,
-    selector: string,
+    searchString: string,
   ): Promise<puppeteer.ElementHandle<Element>[]> {
     try {
       await page.goto(path, { waitUntil: 'networkidle2' });
       const searchBar = await page.$('input#searchboxinput');
       const searchButton = await page.$('button#searchbox-searchbutton');
       await searchBar?.click({ clickCount: 3 });
-      await searchBar?.type(this.searchString);
+      await searchBar?.type(searchString);
       await searchButton?.click();
       await page.waitForNavigation();
-      await page.waitForSelector(selector);
-      const itemList = await page.$$(selector);
+      await page.waitForSelector(this.resultSelector);
+      const itemList = await page.$$(this.resultSelector);
       return itemList;
     } catch (error) {
       this.logger.error('error while building itemList occured:', error);
